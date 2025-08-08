@@ -1,0 +1,401 @@
+// Mariosan - tiny, extensible platformer
+// Architecture: simple ECS-ish loop, tile collisions, 60fps target, multiple stages
+
+import { TILE, Tiles, TileColors, Levels, EnemyType, idx } from './levels.js';
+import { PlayerSprites, drawSprite, EnemySprites } from './sprites.js';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+// Camera
+const camera = { x: 0, y: 0, w: W, h: H };
+
+// Input
+const keys = new Set();
+window.addEventListener('keydown', (e) => {
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','r','R','n','N'].includes(e.key)) {
+    e.preventDefault();
+  }
+  keys.add(e.key);
+});
+window.addEventListener('keyup', (e) => keys.delete(e.key));
+
+// Game state
+let levelIndex = 0;
+let level = Levels[levelIndex];
+let gravity = 1800; // px/s^2
+let friction = 0.8; // ground friction
+let maxRunSpeed = 260; // px/s
+let accel = 1600; // px/s^2
+let jumpVel = 650; // px/s
+let timeScale = 1;
+let player, enemies, solidFn;
+let animTime = 0;
+
+// Overlay
+const overlay = document.getElementById('overlay');
+const message = document.getElementById('message');
+const levelName = document.getElementById('levelName');
+
+function resetLevel(idxOverride) {
+  levelIndex = idxOverride ?? levelIndex;
+  level = Levels[levelIndex];
+  levelName.textContent = level.name;
+  // Build collision accessor
+  solidFn = (x, y) => isSolidTile(getTileAtWorld(x, y));
+
+  // Create player
+  const px = level.playerStart.x * TILE + TILE * 0.1;
+  const py = level.playerStart.y * TILE - TILE; // stand on ground tile row
+  player = makeBody(px, py, TILE * 0.8, TILE * 0.95);
+  player.color = '#1E90FF';
+  player.onGround = false;
+  player.dead = false;
+  player.win = false;
+  player.face = 1; // 1 right, -1 left
+
+  // Enemies
+  enemies = level.enemies.map((e) => {
+    const b = makeBody(e.x * TILE, e.y * TILE - TILE, TILE * 0.9, TILE * 0.9);
+    b.type = e.type;
+    b.color = '#E67E22';
+    b.speed = 80;
+    b.dir = -1;
+    b.patrol = e.patrol ?? null;
+    return b;
+  });
+
+  // Camera start
+  camera.x = Math.max(0, player.x - 200);
+  camera.y = 0;
+
+  // Hide overlay
+  overlay.classList.add('hidden');
+  message.textContent = '';
+}
+
+function makeBody(x, y, w, h) {
+  return { x, y, w, h, vx: 0, vy: 0 };
+}
+
+function isSolidTile(t) {
+  return t === Tiles.Ground || t === Tiles.Platform;
+}
+
+function isHazardTile(t) {
+  return t === Tiles.Spike;
+}
+
+function isGoalTile(t) {
+  return t === Tiles.Flag;
+}
+
+function getTileAtWorld(wx, wy) {
+  const tx = Math.floor(wx / TILE);
+  const ty = Math.floor(wy / TILE);
+  if (tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) return Tiles.Empty;
+  return level.tiles[idx(tx, ty, level.width)];
+}
+
+function aabbOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function step(dt) {
+  const inputLeft = keys.has('ArrowLeft');
+  const inputRight = keys.has('ArrowRight');
+  const wantJump = keys.has('ArrowUp');
+
+  if (inputLeft) player.face = -1;
+  if (inputRight) player.face = 1;
+
+  // Player control
+  if (inputLeft) player.vx -= accel * dt;
+  if (inputRight) player.vx += accel * dt;
+  if (!inputLeft && !inputRight) player.vx *= player.onGround ? friction : 1;
+  player.vx = clamp(player.vx, -maxRunSpeed, maxRunSpeed);
+
+  // Jump (coyote + buffer could be added later)
+  if (wantJump && player.onGround) {
+    player.vy = -jumpVel;
+    player.onGround = false;
+  }
+
+  // Gravity
+  player.vy += gravity * dt;
+
+  // Integrate and collide
+  moveWithCollisions(player, dt);
+
+  // Enemies simple AI
+  for (const e of enemies) {
+    if (e.type === EnemyType.Walker) {
+      if (e.patrol) {
+        if (e.x < e.patrol.left * TILE) e.dir = 1;
+        if (e.x + e.w > (e.patrol.right + 1) * TILE) e.dir = -1;
+      }
+      e.vx = e.speed * e.dir;
+      e.vy += gravity * dt;
+      moveWithCollisions(e, dt, true);
+    } else if (e.type === EnemyType.Goomba) {
+      // basic side-to-side with edge detection
+      e.vx = e.speed * e.dir;
+      e.vy += gravity * dt;
+      const frontX = e.dir > 0 ? (e.x + e.w + 2) : (e.x - 2);
+      const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
+      if (!isSolidTile(tileAheadBelow)) {
+        e.dir *= -1; e.vx = e.speed * e.dir;
+      }
+      moveWithCollisions(e, dt, true);
+    } else if (e.type === EnemyType.Turtle) {
+      // turtle: slower pace, turns at walls or edges
+      const base = e.speed * 0.75;
+      e.vx = base * e.dir;
+      e.vy += gravity * dt;
+      const frontX = e.dir > 0 ? (e.x + e.w + 2) : (e.x - 2);
+      const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
+      if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
+      moveWithCollisions(e, dt, true);
+      // also if hit wall, moveWithCollisions will invert due to enemy flag
+    }
+
+    // If player stomps enemy
+    if (aabbOverlap(player, e)) {
+      const playerBottom = player.y + player.h;
+      const enemyTop = e.y;
+      const verticalSpeed = player.vy;
+      if (playerBottom - enemyTop < TILE * 0.5 && verticalSpeed > 60) {
+        player.vy = -jumpVel * 0.7;
+        e.dead = true;
+      } else {
+        player.dead = true;
+      }
+    }
+  }
+  enemies = enemies.filter(e => !e.dead);
+
+  // Hazards
+  const head = getTileAtWorld(player.x + player.w * 0.5, player.y + 2);
+  const feet = getTileAtWorld(player.x + player.w * 0.5, player.y + player.h - 2);
+  if (isHazardTile(head) || isHazardTile(feet)) player.dead = true;
+
+  // Goal
+  const goalMid = getTileAtWorld(player.x + player.w * 0.5, player.y + player.h * 0.5);
+  if (isGoalTile(goalMid)) player.win = true;
+
+  // Camera follow
+  camera.x = clamp(player.x - W * 0.35, 0, level.width * TILE - W);
+
+  // death/win
+  if (player.y > level.height * TILE + 40) player.dead = true; // fell out quicker
+  if (player.dead) showOverlay('やられた… R でリトライ');
+  if (player.win) showOverlay('ゴール! N で次のステージ');
+
+  animTime += dt;
+}
+
+function showOverlay(text) {
+  if (!overlay.classList.contains('hidden')) return;
+  message.textContent = text;
+  overlay.classList.remove('hidden');
+}
+
+function moveWithCollisions(b, dt, enemy = false) {
+  // Horizontal
+  b.x += b.vx * dt;
+  if (b.vx > 0) {
+    if (hitsSolid(b.x + b.w, b.y + 2, b.y + b.h - 2)) {
+      b.x = tileX(b.x + b.w) * TILE - b.w - 0.01; b.vx = enemy ? -Math.abs(b.vx) : 0;
+    }
+  } else if (b.vx < 0) {
+    if (hitsSolid(b.x, b.y + 2, b.y + b.h - 2)) {
+      b.x = tileX(b.x) * TILE + TILE + 0.01; b.vx = enemy ? Math.abs(b.vx) : 0;
+    }
+  }
+
+  // Vertical
+  b.y += b.vy * dt;
+  b.onGround = false;
+  if (b.vy > 0) {
+    if (hitsSolid(b.x + 2, b.y + b.h, b.x + b.w - 2, true)) {
+      b.y = tileY(b.y + b.h) * TILE - b.h - 0.01; b.vy = 0; b.onGround = true;
+    }
+  } else if (b.vy < 0) {
+    if (hitsSolid(b.x + 2, b.y, b.x + b.w - 2, true)) {
+      b.y = tileY(b.y) * TILE + TILE + 0.01; b.vy = 0;
+    }
+  }
+}
+
+function hitsSolid(x1, y1, x2OrY2, vertical = false) {
+  if (vertical) {
+    const y = y1; const x1v = x1; const x2v = x2OrY2;
+    for (let x = Math.floor(x1v / TILE); x <= Math.floor(x2v / TILE); x++) {
+      const t = getTileAtWorld(x * TILE + 1, y);
+      if (isSolidTile(t)) return true;
+      if (isHazardTile(t)) return true;
+      if (isGoalTile(t)) return false;
+    }
+    return false;
+  } else {
+    const x = x1; const y1h = y1; const y2h = x2OrY2;
+    for (let y = Math.floor(y1h / TILE); y <= Math.floor(y2h / TILE); y++) {
+      const t = getTileAtWorld(x, y * TILE + 1);
+      if (isSolidTile(t)) return true;
+      if (isHazardTile(t)) return true;
+      if (isGoalTile(t)) return false;
+    }
+    return false;
+  }
+}
+
+function tileX(px) { return Math.floor(px / TILE); }
+function tileY(py) { return Math.floor(py / TILE); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+// Rendering
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Sky
+  ctx.fillStyle = '#87CEEB';
+  ctx.fillRect(0, 0, W, H);
+
+  // Parallax clouds (simple)
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (let i = 0; i < 8; i++) {
+    const cx = ((i * 240) - camera.x * 0.5) % (level.width * TILE);
+    const cy = 60 + 40 * Math.sin(i * 1.7);
+    pill(cx - camera.x, cy, 120, 28, 14);
+  }
+
+  // Tiles
+  const startX = Math.floor(camera.x / TILE) - 1;
+  const endX = Math.ceil((camera.x + W) / TILE) + 1;
+  for (let x = startX; x < endX; x++) {
+    if (x < 0 || x >= level.width) continue;
+    for (let y = 0; y < level.height; y++) {
+      const t = level.tiles[idx(x, y, level.width)];
+      if (t === Tiles.Empty) continue;
+      drawTile(x, y, t);
+    }
+  }
+
+  // Entities
+  drawPlayer(player);
+  for (const e of enemies) drawEnemy(e);
+}
+
+function drawEnemy(e) {
+  const x = Math.round(e.x - camera.x);
+  const y = Math.round(e.y - camera.y);
+  const scale = Math.max(2, Math.floor((TILE * 0.9) / 16));
+  if (e.type === EnemyType.Goomba) {
+    drawSprite(ctx, EnemySprites.goomba, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
+  } else if (e.type === EnemyType.Turtle) {
+    drawSprite(ctx, EnemySprites.turtle, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
+  } else {
+    drawBody(e, e.color);
+  }
+}
+
+function drawPlayer(p) {
+  const speed = Math.abs(p.vx);
+  const x = Math.round(p.x - camera.x);
+  const y = Math.round(p.y - camera.y);
+  const scale = Math.max(2, Math.floor((TILE * 0.9) / 16));
+
+  let frame = PlayerSprites.idle;
+  if (!p.onGround) frame = PlayerSprites.jump;
+  else if (speed > 20) frame = (Math.floor(animTime * 10) % 2 === 0) ? PlayerSprites.run1 : PlayerSprites.run2;
+
+  drawSprite(ctx, frame, x + Math.floor((p.w - 16 * scale) / 2), y + Math.floor(p.h - 16 * scale), scale, p.face === -1);
+}
+
+function drawTile(tx, ty, t) {
+  const x = tx * TILE - camera.x;
+  const y = ty * TILE - camera.y;
+  if (t === Tiles.Ground || t === Tiles.Platform) {
+    ctx.fillStyle = TileColors[t];
+    ctx.fillRect(x, y, TILE, TILE);
+    // simple shading
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(x, y + TILE - 6, TILE, 6);
+  } else if (t === Tiles.Spike) {
+    ctx.fillStyle = TileColors[t];
+    drawSpikes(x, y, TILE, TILE);
+  } else if (t === Tiles.Flag) {
+    // pole
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(x + TILE * 0.45, y, 4, TILE);
+    // flag
+    ctx.fillStyle = TileColors[t];
+    ctx.beginPath();
+    ctx.moveTo(x + TILE * 0.45 + 4, y + 4);
+    ctx.lineTo(x + TILE * 0.45 + 4 + 18, y + 12);
+    ctx.lineTo(x + TILE * 0.45 + 4, y + 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawSpikes(x, y, w, h) {
+  const n = 3; const step = w / n;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x0 = x + i * step;
+    ctx.moveTo(x0, y + h);
+    ctx.lineTo(x0 + step * 0.5, y + h * 0.2);
+    ctx.lineTo(x0 + step, y + h);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawBody(b, color) {
+  // used for enemies
+  const x = Math.round(b.x - camera.x);
+  const y = Math.round(b.y - camera.y);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, Math.round(b.w), Math.round(b.h));
+}
+
+function pill(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2 + r, y - h / 2);
+  ctx.arcTo(x + w / 2, y - h / 2, x + w / 2, y + h / 2, r);
+  ctx.arcTo(x + w / 2, y + h / 2, x - w / 2, y + h / 2, r);
+  ctx.arcTo(x - w / 2, y + h / 2, x - w / 2, y - h / 2, r);
+  ctx.arcTo(x - w / 2, y - h / 2, x + w / 2, y - h / 2, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Loop
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(1/30, (now - last) / 1000) * timeScale;
+  last = now;
+  if (overlay.classList.contains('hidden')) step(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+// Inputs: restart/next
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    resetLevel();
+  } else if (e.key === 'n' || e.key === 'N') {
+    // advance level if exists
+    if (player.win) {
+      levelIndex = (levelIndex + 1) % Levels.length;
+      resetLevel();
+    }
+  }
+});
+
+// Start
+resetLevel(0);
+requestAnimationFrame(loop);
