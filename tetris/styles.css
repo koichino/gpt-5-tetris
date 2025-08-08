@@ -5,6 +5,11 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 h1 { font-size: 24px; margin: 0; }
 .hud { display: flex; gap: 16px; font-size: 14px; color: #a9b3d1; }
 
+/* Request: hide right-top HUD display entirely without removing DOM */
+.hud { display: none !important; }
+/* Also hide the header title text */
+header h1 { display: none !important; }
+
 main { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
 #board { background: #0b0f1f; border-radius: 10px; border: 1px solid #1e254a; box-shadow: 0 0 0 4px #0b0f1f, 0 12px 30px rgba(0,0,0,0.4); }
 #next { background: #0b0f1f; border-radius: 10px; border: 1px solid #1e254a; }

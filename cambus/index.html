@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>お絵かきキャンバス</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>お絵かきキャンバス</h1>
+    <nav>
+      <a href="../tetris/index.html">Tetris</a>
+    </nav>
+  </header>
+
+  <section class="toolbar" aria-label="ツールバー">
+    <div class="tools-row">
+      <div class="tool-buttons" role="group" aria-label="ツール">
+        <button class="tool-btn" id="tool-pen" data-tool="pen" aria-pressed="true" title="ペン (P)">✏️ ペン</button>
+        <button class="tool-btn" id="tool-eraser" data-tool="eraser" aria-pressed="false" title="消しゴム (E)">🩹 消しゴム</button>
+        <button class="tool-btn" id="tool-line" data-tool="line" aria-pressed="false" title="直線 (L)">／ 直線</button>
+        <button class="tool-btn" id="tool-rect" data-tool="rect" aria-pressed="false" title="四角形 (R)">▭ 四角形</button>
+        <button class="tool-btn" id="tool-circle" data-tool="circle" aria-pressed="false" title="円 (C)">◯ 円</button>
+      </div>
+      <label>
+        色
+        <input id="color" type="color" value="#222222" />
+      </label>
+      <label>
+        太さ
+        <input id="size" type="range" min="1" max="60" value="8" />
+        <span id="sizeVal">8</span>
+      </label>
+      <label title="筆圧対応 (対応デバイスのみ)">
+        <input id="pressure" type="checkbox" /> 筆圧
+      </label>
+      <label>
+        <input id="gridToggle" type="checkbox" /> グリッド
+      </label>
+      <button id="themeToggle" title="ダーク/ライト切替">🌓 ダークモード</button>
+    </div>
+    <div class="tools-row">
+      <button id="undo" aria-label="元に戻す(Ctrl+Z)" title="元に戻す (Ctrl+Z)">↶ 元に戻す</button>
+      <button id="redo" aria-label="やり直し(Ctrl+Shift+Z)" title="やり直し (Ctrl+Shift+Z)">↷ やり直し</button>
+      <button id="clear" title="全消し">🧹 全消し</button>
+      <button id="save" title="PNGで保存">💾 保存</button>
+    </div>
+  </section>
+
+  <main class="stage" aria-label="お絵かき領域">
+    <div class="canvas-wrap" id="canvasWrap">
+  <canvas id="bg" aria-hidden="true"></canvas>
+      <canvas id="grid" aria-hidden="true"></canvas>
+      <canvas id="canvas" aria-label="お絵かき用キャンバス"></canvas>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <small>キャンバスはウィンドウサイズに合わせて拡大縮小します。描画内容は解像度に合わせて保持されます。</small>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
