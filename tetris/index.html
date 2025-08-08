@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tetris</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Tetris</h1>
+      <div class="hud">
+        <div>スコア: <span id="score">0</span></div>
+        <div>レベル: <span id="level">1</span></div>
+        <div>ライン: <span id="lines">0</span></div>
+      </div>
+    </header>
+
+    <main>
+      <canvas id="board" width="240" height="480" aria-label="Tetris board" role="img"></canvas>
+      <aside>
+        <h2>Next</h2>
+        <canvas id="next" width="120" height="120"></canvas>
+        <div class="controls">
+          <button id="btn-start">開始/一時停止 (Space)</button>
+          <button id="btn-restart">リスタート (R)</button>
+        </div>
+        <div class="help">
+          <p>操作:</p>
+          <ul>
+            <li>← →: 移動</li>
+            <li>↑: 回転</li>
+            <li>↓: ソフトドロップ</li>
+            <li>Space: 開始/一時停止</li>
+            <li>R: リスタート</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <small>© 2025 Playground</small>
+    </footer>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
