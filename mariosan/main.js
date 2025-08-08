@@ -14,10 +14,12 @@ const camera = { x: 0, y: 0, w: W, h: H };
 
 // Input
 const keys = new Set();
+let justPressedUp = false;
 window.addEventListener('keydown', (e) => {
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','r','R','n','N'].includes(e.key)) {
     e.preventDefault();
   }
+  if (e.key === 'ArrowUp') justPressedUp = true;
   keys.add(e.key);
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key));
@@ -33,6 +35,7 @@ let jumpVel = 650; // px/s
 let timeScale = 1;
 let player, enemies, solidFn;
 let animTime = 0;
+let projectiles = [];
 
 // Overlay
 const overlay = document.getElementById('overlay');
@@ -55,15 +58,21 @@ function resetLevel(idxOverride) {
   player.dead = false;
   player.win = false;
   player.face = 1; // 1 right, -1 left
+  player.maxJumps = 2;
+  player.jumpCount = 0;
 
   // Enemies
   enemies = level.enemies.map((e) => {
-    const b = makeBody(e.x * TILE, e.y * TILE - TILE, TILE * 0.9, TILE * 0.9);
+    const sizeMul = (e.type === EnemyType.Boss) ? 2.0 : 0.9;
+    const b = makeBody(e.x * TILE, e.y * TILE - TILE * sizeMul, TILE * sizeMul, TILE * sizeMul);
     b.type = e.type;
     b.color = '#E67E22';
-    b.speed = 80;
+    b.speed = (e.type === EnemyType.Boss) ? 60 : 80;
     b.dir = -1;
     b.patrol = e.patrol ?? null;
+    if (e.type === EnemyType.Boss) {
+      b.hitsTaken = 0;
+    }
     return b;
   });
 
@@ -74,6 +83,7 @@ function resetLevel(idxOverride) {
   // Hide overlay
   overlay.classList.add('hidden');
   message.textContent = '';
+  projectiles = [];
 }
 
 function makeBody(x, y, w, h) {
@@ -106,7 +116,7 @@ function aabbOverlap(a, b) {
 function step(dt) {
   const inputLeft = keys.has('ArrowLeft');
   const inputRight = keys.has('ArrowRight');
-  const wantJump = keys.has('ArrowUp');
+  const wantJump = justPressedUp; // edge-triggered
 
   if (inputLeft) player.face = -1;
   if (inputRight) player.face = 1;
@@ -117,17 +127,27 @@ function step(dt) {
   if (!inputLeft && !inputRight) player.vx *= player.onGround ? friction : 1;
   player.vx = clamp(player.vx, -maxRunSpeed, maxRunSpeed);
 
-  // Jump (coyote + buffer could be added later)
-  if (wantJump && player.onGround) {
-    player.vy = -jumpVel;
-    player.onGround = false;
+  // Jump with double-jump support (edge-triggered)
+  if (wantJump) {
+    if (player.onGround) {
+      player.vy = -jumpVel;
+      player.onGround = false;
+      player.jumpCount = 1;
+    } else if (player.jumpCount < player.maxJumps) {
+      player.vy = -jumpVel;
+      player.jumpCount += 1;
+    }
   }
+
+  // consume edge-trigger
+  justPressedUp = false;
 
   // Gravity
   player.vy += gravity * dt;
 
   // Integrate and collide
   moveWithCollisions(player, dt);
+  if (player.onGround) player.jumpCount = 0; // reset jumps when grounded
 
   // Enemies simple AI
   for (const e of enemies) {
@@ -168,6 +188,27 @@ function step(dt) {
       const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
       if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
       moveWithCollisions(e, dt, true);
+    } else if (e.type === EnemyType.Boss) {
+      // Boss: heavy slow patrol; requires 3 stomps + fire breath
+      if (e.hitsTaken == null) e.hitsTaken = 0;
+      if (e.fireCooldown == null) e.fireCooldown = 0;
+      const base = e.speed * 0.5;
+      e.vx = base * e.dir;
+      e.vy += gravity * dt;
+      const frontX = e.dir > 0 ? (e.x + e.w + 2) : (e.x - 2);
+      const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
+      if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
+      moveWithCollisions(e, dt, true);
+
+      // Face based on velocity
+      if (Math.abs(e.vx) > 1) e.dir = e.vx > 0 ? 1 : -1;
+
+      // Fire breath when player is near horizontally
+      e.fireCooldown -= dt;
+      if (Math.abs((player.x + player.w/2) - (e.x + e.w/2)) < TILE * 10 && e.fireCooldown <= 0) {
+        spawnFire(e);
+        e.fireCooldown = 1.6; // seconds
+      }
     }
 
     // If player stomps enemy
@@ -175,15 +216,45 @@ function step(dt) {
       const playerBottom = player.y + player.h;
       const enemyTop = e.y;
       const verticalSpeed = player.vy;
-      if (playerBottom - enemyTop < TILE * 0.5 && verticalSpeed > 60) {
+      const stomped = (playerBottom - enemyTop < TILE * 0.6 && verticalSpeed > 60);
+      if (stomped) {
         player.vy = -jumpVel * 0.7;
-        e.dead = true;
+        if (e.type === EnemyType.Boss) {
+          if (e.hitsTaken == null) e.hitsTaken = 0;
+          e.hitsTaken += 1;
+          if (e.hitsTaken >= 3) e.dead = true; // boss defeated
+        } else {
+          e.dead = true;
+        }
       } else {
         player.dead = true;
       }
     }
   }
   enemies = enemies.filter(e => !e.dead);
+
+  // Projectiles update
+  const newProjectiles = [];
+  for (const p of projectiles) {
+    p.vy += (p.gravity ?? 0) * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    // collide with tiles
+    if (hitsSolid(p.x, p.y + p.h/2, p.y + p.h/2)) continue; // horizontal wall
+    if (hitsSolid(p.x + p.w/2, p.y + p.h, p.x + p.w/2, true)) continue; // floor
+    // hit player
+    if (!player.dead && aabbOverlap(player, p)) { player.dead = true; continue; }
+    // cull off-screen
+    if (p.x < camera.x - 100 || p.x > camera.x + W + 100 || p.y > level.height * TILE + 100) continue;
+    newProjectiles.push(p);
+  }
+  projectiles = newProjectiles;
+
+  // If boss-based win condition
+  if (level.winByDefeatingBoss) {
+    const bossAlive = enemies.some(e => e.type === EnemyType.Boss);
+    if (!bossAlive) player.win = true;
+  }
 
   // Hazards
   const head = getTileAtWorld(player.x + player.w * 0.5, player.y + 2);
@@ -266,16 +337,38 @@ function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function render() {
   ctx.clearRect(0, 0, W, H);
 
-  // Sky
-  ctx.fillStyle = '#87CEEB';
-  ctx.fillRect(0, 0, W, H);
+  // Background by theme
+  if (level.theme === 'battle') {
+    // darker sky
+    ctx.fillStyle = '#5c7a8a';
+    ctx.fillRect(0, 0, W, H);
+    // smoke clouds
+    ctx.fillStyle = 'rgba(220,220,220,0.6)';
+    for (let i = 0; i < 10; i++) {
+      const cx = ((i * 200) - camera.x * 0.6) % (level.width * TILE);
+      const cy = 40 + 30 * Math.sin(i * 1.3);
+      pill(cx - camera.x, cy, 130, 30, 16);
+    }
+    // distant silhouettes (tanks / barricades as rectangles)
+    ctx.fillStyle = 'rgba(40,50,60,0.7)';
+    for (let i = 0; i < 6; i++) {
+      const bx = ((i * 320) - camera.x * 0.8) % (level.width * TILE) - camera.x;
+      const by = H - 80 + 10 * Math.sin(i);
+      ctx.fillRect(bx, by, 120, 18);
+      ctx.fillRect(bx + 20, by - 10, 40, 10);
+    }
+  } else {
+    // Sky
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, W, H);
 
-  // Parallax clouds (simple)
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  for (let i = 0; i < 8; i++) {
-    const cx = ((i * 240) - camera.x * 0.5) % (level.width * TILE);
-    const cy = 60 + 40 * Math.sin(i * 1.7);
-    pill(cx - camera.x, cy, 120, 28, 14);
+    // Parallax clouds (simple)
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    for (let i = 0; i < 8; i++) {
+      const cx = ((i * 240) - camera.x * 0.5) % (level.width * TILE);
+      const cy = 60 + 40 * Math.sin(i * 1.7);
+      pill(cx - camera.x, cy, 120, 28, 14);
+    }
   }
 
   // Tiles
@@ -290,9 +383,25 @@ function render() {
     }
   }
 
+  // Projectiles
+  drawProjectiles();
+
   // Entities
   drawPlayer(player);
   for (const e of enemies) drawEnemy(e);
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    const x = Math.round(p.x - camera.x);
+    const y = Math.round(p.y - camera.y);
+    // simple flame gradient
+    const grad = ctx.createLinearGradient(x, y, x + p.w, y);
+    grad.addColorStop(0, p.color1);
+    grad.addColorStop(1, p.color2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, p.w, p.h);
+  }
 }
 
 function drawEnemy(e) {
@@ -305,6 +414,10 @@ function drawEnemy(e) {
     drawSprite(ctx, EnemySprites.turtle, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
   } else if (e.type === EnemyType.Mouse) {
     drawSprite(ctx, EnemySprites.mouse, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
+  } else if (e.type === EnemyType.Boss) {
+    const bw = EnemySprites.boss[0].length; const bh = EnemySprites.boss.length;
+    const bossScale = Math.max(2, Math.floor(e.h / bh));
+    drawSprite(ctx, EnemySprites.boss, x + Math.floor((e.w - bw * bossScale) / 2), y + Math.floor(e.h - bh * bossScale), bossScale, e.dir < 0);
   } else {
     drawBody(e, e.color);
   }

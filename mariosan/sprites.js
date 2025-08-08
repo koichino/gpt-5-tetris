@@ -8,6 +8,9 @@ const PALETTE = {
   S: '#F5CBA7', // skin
   K: '#2E2E2E', // outlines/shoes
   W: '#FFFFFF', // eye white
+  G: '#2E7D32', // green for turtle shell
+  D: '#8E0000', // dark red for boss accents
+  O: '#FB8C00', // orange (optional)
 };
 
 // 16x16 frames
@@ -147,19 +150,47 @@ const mouse = [
   '................',
 ];
 
-export const EnemySprites = { goomba, turtle, mouse };
+const boss = [
+  '................................',
+  '...........DDDDDDDD.............',
+  '.........DDRRRRRRRRDD...........',
+  '........DRRRWWWWRRRRD...........',
+  '........DRRRRRRRRRRRD...........',
+  '.......DRRRRRRRRRRRRRD..........',
+  '.......DRRRRRRRRRRRRRD..........',
+  '.......DRRRRRRRRRRRRRD..........',
+  '.......DRRRRRRRRRRRRRD..........',
+  '........DRRRRRRRRRRRD...........',
+  '........DRRYYYYYYYYRD...........',
+  '.........DRRYYYYYYRD............',
+  '..........KRRRRRRRK.............',
+  '..........KRR....RRK............',
+  '.........KRRR....RRRK...........',
+  '.........KRRR....RRRK...........',
+  '..........KRR....RRK............',
+  '..........KRRRRRRRK.............',
+  '.........KRR......RRK...........',
+  '........KRR........RRK..........',
+  '........KRR........RRK..........',
+  '.........K..........K...........',
+  '................................',
+  '................................',
+];
+
+export const EnemySprites = { goomba, turtle, mouse, boss };
 
 export function drawSprite(ctx, frame, dx, dy, scale = 2, flip = false) {
-  const size = 16;
+  const h = frame.length;
+  const w = frame[0]?.length || 0;
   ctx.save();
   ctx.translate(Math.round(dx), Math.round(dy));
   if (flip) {
     ctx.scale(-1, 1);
-    ctx.translate(-size * scale, 0);
+    ctx.translate(-w * scale, 0);
   }
-  for (let y = 0; y < size; y++) {
+  for (let y = 0; y < h; y++) {
     const row = frame[y];
-    for (let x = 0; x < size; x++) {
+    for (let x = 0; x < w; x++) {
       const c = row[x];
       if (c === '.' || !c) continue;
       const color = PALETTE[c] || '#000';

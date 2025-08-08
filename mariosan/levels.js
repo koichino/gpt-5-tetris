@@ -26,6 +26,7 @@ export const EnemyType = {
   Goomba: "goomba",
   Turtle: "turtle",
   Mouse: "mouse",
+  Boss: "boss",
 };
 
 // Level schema
@@ -134,6 +135,63 @@ export const Levels = [
 
       // goal flag
       rect(A, w, 78, 5, 1, 7, F);
+      return A;
+    })(),
+  },
+  // Stage 3: battlefield theme with boss
+  {
+    name: "Stage 3",
+    width: 100,
+    height: 17,
+    theme: "battle",            // custom theme for background
+    winByDefeatingBoss: true,    // clear when boss is defeated
+    playerStart: { x: 2, y: 10 },
+    enemies: [
+      { type: EnemyType.Goomba, x: 14, y: 10, patrol: { left: 12, right: 20 } },
+      { type: EnemyType.Mouse, x: 28, y: 10, patrol: { left: 26, right: 34 } },
+      { type: EnemyType.Turtle, x: 44, y: 10, patrol: { left: 42, right: 48 } },
+      { type: EnemyType.Mouse, x: 56, y: 7, patrol: { left: 54, right: 60 } },
+      { type: EnemyType.Goomba, x: 70, y: 6, patrol: { left: 68, right: 74 } },
+      // Boss near the end
+      { type: EnemyType.Boss, x: 88, y: 10, patrol: { left: 86, right: 96 } },
+    ],
+    tiles: (() => {
+      const w = 100, h = 17;
+      const A = new Array(w * h).fill(0);
+      const G = Tiles.Ground, P = Tiles.Platform, S = Tiles.Spike, F = Tiles.Flag;
+
+      // base ground / battlefield broken ground
+      for (let x = 0; x < w; x++) {
+        A[idx(x, 12, w)] = G;
+        A[idx(x, 13, w)] = G;
+        A[idx(x, 14, w)] = G;
+        A[idx(x, 15, w)] = G;
+        A[idx(x, 16, w)] = G;
+      }
+
+      // pits and spike trenches
+      clearRect(A, w, 9, 12, 2, 5);
+      clearRect(A, w, 22, 12, 3, 5);
+      clearRect(A, w, 33, 12, 4, 5);
+  for (let x = 50; x <= 53; x++) A[idx(x, 12, w)] = S; // shorter spike trench
+      clearRect(A, w, 60, 12, 3, 5);
+      for (let x = 66; x <= 68; x++) A[idx(x, 12, w)] = S;
+
+      // elevated platforms like bunkers
+      rect(A, w, 12, 8, 4, 1, P);
+      rect(A, w, 20, 7, 4, 1, P);
+      rect(A, w, 28, 6, 5, 1, P);
+      rect(A, w, 38, 8, 4, 1, P);
+      rect(A, w, 46, 7, 4, 1, P);
+      rect(A, w, 58, 6, 5, 1, P);
+      rect(A, w, 68, 5, 4, 1, P);
+  rect(A, w, 78, 7, 4, 1, P);
+  rect(A, w, 73, 8, 3, 1, P); // extra platform for relief
+
+      // approach to boss: stair blocks
+      for (let i = 0; i < 5; i++) rect(A, w, 82 + i, 11 - i, 1, 1, G);
+
+      // No flag; win when boss defeated
       return A;
     })(),
   },
