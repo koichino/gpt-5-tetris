@@ -128,7 +128,26 @@ const turtle = [
   '................',
 ];
 
-export const EnemySprites = { goomba, turtle };
+const mouse = [
+  '................',
+  '......YYYYY.....',
+  '.....YYYYYYY....',
+  '....YYYYYYYYY...',
+  '...YYWWWYWWWY...',
+  '...YYYYYYYYYY...',
+  '....YYYYYYYY....',
+  '...KYYSSSSYYK...',
+  '...KYYYYYYYYK...',
+  '....KYYYYYYK....',
+  '.....KYYYYK.....',
+  '......KYYK......',
+  '.......K.K......',
+  '......K...K.....',
+  '................',
+  '................',
+];
+
+export const EnemySprites = { goomba, turtle, mouse };
 
 export function drawSprite(ctx, frame, dx, dy, scale = 2, flip = false) {
   const size = 16;

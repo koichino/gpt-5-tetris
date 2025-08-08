@@ -1,8 +1,8 @@
 # Mariosan
 
 シンプルな横スクロール・アクション（スーパーマリオ風）。
-- 1 ステージ実装済み（今後ステージ追加可能な構成）
-- タイルマップ＋敵（ウォーカー＆キノコ型）＋スパイク（トゲ）＋ゴール旗
+- 2 ステージ実装（Stage 2 は少し難しめ）
+- タイルマップ＋敵（キノコ型／亀／ネズミ）＋スパイク（トゲ）＋ゴール旗
 
 ## 操作
 - 左右移動: ← →
@@ -18,33 +18,30 @@
 - `index.html` ... キャンバスと HUD のみ、スクリプト読み込み
 - `styles.css` ... HUD/オーバーレイ/キャンバスのスタイル
 - `levels.js` ... タイルサイズ、タイル種別、ステージ配列（`Levels`）
-- `main.js` ... ゲームループ、当たり判定、描画、敵 AI（パトロール＋崖検出）
-- `sprites.js` ... プレイヤー＆キノコ型敵のドット絵と描画
+- `main.js` ... ゲームループ、当たり判定、描画、敵 AI
+- `sprites.js` ... プレイヤー＆敵（キノコ・亀・ネズミ）のドット絵と描画
 
 ## ステージ追加方法
 `levels.js` の `Levels` 配列にオブジェクトを追加します。
 最低限の項目:
 ```js
 {
-  name: "Stage 2",
-  width: 80,
+  name: "Stage 3",
+  width: 90,
   height: 17,
   playerStart: { x: 2, y: 10 },
   enemies: [
-    { type: EnemyType.Goomba, x: 20, y: 10, patrol: { left: 18, right: 26 } },
+    { type: EnemyType.Mouse, x: 30, y: 10, patrol: { left: 28, right: 38 } },
   ],
   tiles: (() => {
-    const w = 80, h = 17;
+    const w = 90, h = 17;
     const A = new Array(w * h).fill(0);
     const G = Tiles.Ground, P = Tiles.Platform, S = Tiles.Spike, F = Tiles.Flag;
-    // ... A[idx(x,y,w)] にタイルを詰める（サンプルは Stage 1 参照）
+    // ...地形を A[idx(x,y,w)] に詰める
     return A;
   })(),
 }
 ```
-- 地形衝突: `Ground`/`Platform`
-- トゲ: `Spike`（触れるとミス）
-- ゴール: `Flag`（触れるとクリア）
 
 ## ライセンス
 MIT

@@ -159,6 +159,15 @@ function step(dt) {
       if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
       moveWithCollisions(e, dt, true);
       // also if hit wall, moveWithCollisions will invert due to enemy flag
+    } else if (e.type === EnemyType.Mouse) {
+      // mouse: fast runner, turns at edges
+      const base = e.speed * 1.35;
+      e.vx = base * e.dir;
+      e.vy += gravity * dt;
+      const frontX = e.dir > 0 ? (e.x + e.w + 2) : (e.x - 2);
+      const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
+      if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
+      moveWithCollisions(e, dt, true);
     }
 
     // If player stomps enemy
@@ -234,8 +243,7 @@ function hitsSolid(x1, y1, x2OrY2, vertical = false) {
     const y = y1; const x1v = x1; const x2v = x2OrY2;
     for (let x = Math.floor(x1v / TILE); x <= Math.floor(x2v / TILE); x++) {
       const t = getTileAtWorld(x * TILE + 1, y);
-      if (isSolidTile(t)) return true;
-      if (isHazardTile(t)) return true;
+  if (isSolidTile(t)) return true;
       if (isGoalTile(t)) return false;
     }
     return false;
@@ -243,8 +251,7 @@ function hitsSolid(x1, y1, x2OrY2, vertical = false) {
     const x = x1; const y1h = y1; const y2h = x2OrY2;
     for (let y = Math.floor(y1h / TILE); y <= Math.floor(y2h / TILE); y++) {
       const t = getTileAtWorld(x, y * TILE + 1);
-      if (isSolidTile(t)) return true;
-      if (isHazardTile(t)) return true;
+  if (isSolidTile(t)) return true;
       if (isGoalTile(t)) return false;
     }
     return false;
@@ -296,6 +303,8 @@ function drawEnemy(e) {
     drawSprite(ctx, EnemySprites.goomba, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
   } else if (e.type === EnemyType.Turtle) {
     drawSprite(ctx, EnemySprites.turtle, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
+  } else if (e.type === EnemyType.Mouse) {
+    drawSprite(ctx, EnemySprites.mouse, x + Math.floor((e.w - 16 * scale) / 2), y + Math.floor(e.h - 16 * scale), scale, e.dir < 0);
   } else {
     drawBody(e, e.color);
   }
