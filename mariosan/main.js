@@ -4,6 +4,10 @@
 import { TILE, Tiles, TileColors, Levels, EnemyType, idx } from './levels.js';
 import { PlayerSprites, drawSprite, EnemySprites } from './sprites.js';
 
+// --- Simple diagnostics (remove later if not needed) ---
+let diag = { lastReset:'', tiles:0, enemies:0 };
+window.__MARIOSAN_DIAG__ = diag;
+
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = canvas.width;
@@ -36,16 +40,44 @@ let timeScale = 1;
 let player, enemies, solidFn;
 let animTime = 0;
 let projectiles = [];
+// Boss behavior parameters (populated from level each reset)
+// Defaults ensure backward compatibility if older levels lack custom fields
+let currentBossHits = 3;
+let currentBossFireCooldown = 1.6;
+let currentBossFireBurst = 3;
 
 // Overlay
 const overlay = document.getElementById('overlay');
 const message = document.getElementById('message');
 const levelName = document.getElementById('levelName');
+const stageSelect = document.getElementById('stageSelect');
+
+// Populate stage selector
+if(stageSelect){
+  Levels.forEach((L, i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${i+1}: ${L.name}`;
+    stageSelect.appendChild(opt);
+  });
+  stageSelect.addEventListener('change', ()=>{
+    const idx = parseInt(stageSelect.value, 10) || 0;
+    resetLevel(idx);
+  });
+}
 
 function resetLevel(idxOverride) {
-  levelIndex = idxOverride ?? levelIndex;
-  level = Levels[levelIndex];
-  levelName.textContent = level.name;
+  try {
+    levelIndex = idxOverride ?? levelIndex;
+    level = Levels[levelIndex];
+    levelName.textContent = level?.name || '(unknown)';
+  } catch(err){
+    console.error('Level load error', err);
+    message.textContent = 'レベル読み込み失敗: '+ err;
+    overlay.classList.remove('hidden');
+    return;
+  }
+  if(stageSelect && stageSelect.value != String(levelIndex)) stageSelect.value = String(levelIndex);
   // Build collision accessor
   solidFn = (x, y) => isSolidTile(getTileAtWorld(x, y));
 
@@ -62,7 +94,7 @@ function resetLevel(idxOverride) {
   player.jumpCount = 0;
 
   // Enemies
-  enemies = level.enemies.map((e) => {
+  enemies = (level.enemies||[]).map((e) => {
     const sizeMul = (e.type === EnemyType.Boss) ? 2.0 : 0.9;
     const b = makeBody(e.x * TILE, e.y * TILE - TILE * sizeMul, TILE * sizeMul, TILE * sizeMul);
     b.type = e.type;
@@ -84,6 +116,23 @@ function resetLevel(idxOverride) {
   overlay.classList.add('hidden');
   message.textContent = '';
   projectiles = [];
+
+  // Per-level boss tuning
+  currentBossHits = level?.bossHits || 3;
+  currentBossFireCooldown = level?.bossFireCooldown || 1.6;
+  currentBossFireBurst = level?.bossFireBurst || 3;
+
+  // Diagnostics
+  let nonEmpty = 0;
+  if (level && level.tiles) {
+    for (const t of level.tiles) if (t) nonEmpty++;
+  }
+  diag.lastReset = new Date().toISOString();
+  diag.tiles = nonEmpty;
+  diag.enemies = enemies.length;
+  if(nonEmpty === 0){
+    console.warn('No tiles detected in level', levelIndex);
+  }
 }
 
 function makeBody(x, y, w, h) {
@@ -94,9 +143,7 @@ function isSolidTile(t) {
   return t === Tiles.Ground || t === Tiles.Platform;
 }
 
-function isHazardTile(t) {
-  return t === Tiles.Spike;
-}
+function isHazardTile(t) { return t === Tiles.Spike; }
 
 function isGoalTile(t) {
   return t === Tiles.Flag;
@@ -188,7 +235,7 @@ function step(dt) {
       const tileAheadBelow = getTileAtWorld(frontX, e.y + e.h + 2);
       if (!isSolidTile(tileAheadBelow)) e.dir *= -1;
       moveWithCollisions(e, dt, true);
-    } else if (e.type === EnemyType.Boss) {
+  } else if (e.type === EnemyType.Boss) {
       // Boss: heavy slow patrol; requires 3 stomps + fire breath
       if (e.hitsTaken == null) e.hitsTaken = 0;
       if (e.fireCooldown == null) e.fireCooldown = 0;
@@ -206,8 +253,8 @@ function step(dt) {
       // Fire breath when player is near horizontally
       e.fireCooldown -= dt;
       if (Math.abs((player.x + player.w/2) - (e.x + e.w/2)) < TILE * 10 && e.fireCooldown <= 0) {
-        spawnFire(e);
-        e.fireCooldown = 1.6; // seconds
+  spawnBossFire(e);
+  e.fireCooldown = currentBossFireCooldown; // per-level seconds
       }
     }
 
@@ -222,7 +269,7 @@ function step(dt) {
         if (e.type === EnemyType.Boss) {
           if (e.hitsTaken == null) e.hitsTaken = 0;
           e.hitsTaken += 1;
-          if (e.hitsTaken >= 3) e.dead = true; // boss defeated
+          if (e.hitsTaken >= currentBossHits) e.dead = true; // boss defeated (per-level)
         } else {
           e.dead = true;
         }
@@ -357,6 +404,57 @@ function render() {
       ctx.fillRect(bx, by, 120, 18);
       ctx.fillRect(bx + 20, by - 10, 40, 10);
     }
+  } else if (level.theme === 'fortress') {
+    // Dark interior with brick pattern and torches
+    ctx.fillStyle = '#141414';
+    ctx.fillRect(0, 0, W, H);
+    // bricks
+    ctx.fillStyle = '#1e1e1e';
+    const brickSize = 32;
+    for (let by = 0; by < H; by += brickSize) {
+      for (let bx = -((camera.x * 0.4) % brickSize); bx < W; bx += brickSize) {
+        ctx.fillRect(bx, by, brickSize - 3, brickSize - 3);
+      }
+    }
+    // torches (parallax)
+    for (let i = 0; i < 6; i++) {
+      const tx = ((i * 300) - camera.x * 0.5) % (level.width * TILE) - camera.x;
+      const ty = 100 + 10 * Math.sin((animTime + i) * 2);
+      ctx.fillStyle = '#552200';
+      ctx.fillRect(tx, ty + 15, 12, 40);
+      ctx.fillStyle = '#ff7b00';
+      pill(tx + 6, ty + 10, 30, 30, 12);
+      ctx.fillStyle = '#ffd200';
+      pill(tx + 6, ty + 10, 16, 16, 8);
+    }
+  } else if (level.theme === 'forest') {
+    // Lush forest: gradient sky + parallax tree layers
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#6ec6ff');
+    grad.addColorStop(1,'#b0e67a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+    // distant canopy silhouettes
+    for(let layer=0; layer<3; layer++){
+      const speed = 0.2 + layer*0.15;
+      const color = ['#2f5d31','#266029','#1e4d21'][layer];
+      ctx.fillStyle = color;
+      for(let i=0;i<12;i++){
+        const baseX = ((i*300) - camera.x * speed) % (level.width*TILE) - camera.x;
+        const h = 120 + layer*30;
+        ctx.beginPath();
+        ctx.ellipse(baseX, H - 60 - layer*25, 160, h, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    // foreground trunks
+    for(let i=0;i<8;i++){
+      const x = ((i*220) - camera.x * 0.6) % (level.width*TILE) - camera.x;
+      ctx.fillStyle = '#5a3b13';
+      ctx.fillRect(x, H-200, 30, 200);
+      ctx.fillStyle = '#3a8b2c';
+      ctx.beginPath(); ctx.arc(x+15, H-210, 70,0,Math.PI*2); ctx.fill();
+    }
   } else {
     // Sky
     ctx.fillStyle = '#87CEEB';
@@ -389,6 +487,17 @@ function render() {
   // Entities
   drawPlayer(player);
   for (const e of enemies) drawEnemy(e);
+
+  // Diagnostics text if something wrong
+  if (diag.tiles === 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, H-80, 300, 70);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.fillText('DEBUG: tiles=0', 20, H-55);
+    ctx.fillText('enemies='+diag.enemies, 20, H-35);
+    ctx.fillText('levelIndex='+levelIndex, 20, H-15);
+  }
 }
 
 function drawProjectiles() {
@@ -519,5 +628,30 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Start
-resetLevel(0);
+try { resetLevel(0); } catch(e){ console.error(e); }
 requestAnimationFrame(loop);
+
+// ---------------- Boss Fire / Projectiles Helpers ----------------
+function spawnBossFire(e){
+  // Burst fan downward slightly
+  const count = currentBossFireBurst;
+  const baseAngle = -0.28; // upward negative y is up
+  const step = 0.12;
+  for(let i=0;i<count;i++){
+    const ang = baseAngle - step * i;
+    const speed = 240;
+    const dir = (e.dir || 1);
+    const vx = Math.cos(ang) * speed * dir;
+    const vy = Math.sin(ang) * speed;
+    projectiles.push({
+      x: e.x + e.w/2 + (dir>0? e.w/2 : -e.w/2),
+      y: e.y + e.h*0.4,
+      w: 14,
+      h: 14,
+      vx, vy,
+      gravity: 300,
+      color1: '#ffed00',
+      color2: '#ff5500'
+    });
+  }
+}

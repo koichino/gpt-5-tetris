@@ -178,6 +178,7 @@ const boss = [
 ];
 
 export const EnemySprites = { goomba, turtle, mouse, boss };
+// (Mon sprite removed in revert to pre-Stage5)
 
 export function drawSprite(ctx, frame, dx, dy, scale = 2, flip = false) {
   const h = frame.length;

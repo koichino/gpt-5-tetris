@@ -18,6 +18,9 @@ body {
   z-index: 2;
   font-size: 14px;
 }
+.hud select { margin-left: 4px; padding: 2px 4px; font-size: 13px; }
+.hud label { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; }
+.hud .controls { opacity: 0.85; }
 
 canvas#game {
   display: block;
