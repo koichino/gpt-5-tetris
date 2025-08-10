@@ -250,6 +250,61 @@ export const Levels = [
       return A;
     })(),
   },
+  // Stage 5: brutal gauntlet, no floating platforms, dense enemies, boss clear (3 hits)
+  {
+    name: "Stage 5",
+    width: 150,
+    height: 17,
+    theme: "fortress",
+    bossHits: 3,              // 3 stomps to defeat
+    bossFireCooldown: 1.4,    // moderate fire rate
+    bossFireBurst: 4,         // slightly challenging
+    winByDefeatingBoss: true, // victory only after boss defeat
+    playerStart: { x: 2, y: 10 },
+    enemies: (() => {
+      const list = [];
+      // Dense ground enemies along corridor segments; spacing keeps them from stacking excessively
+      const placements = [8,14,20,26,32,38,44,50,56,62,68,74,80,86,92,98,104,110];
+      for (const x of placements) {
+        list.push({ type: EnemyType.Goomba, x, y: 10, patrol: { left: x-2, right: x+2 } });
+        list.push({ type: EnemyType.Mouse, x: x+3, y: 10, patrol: { left: x+1, right: x+5 } });
+        // occasional turtle for armor variety every other slot
+        if (x % 2 === 0) list.push({ type: EnemyType.Turtle, x: x+6, y: 10, patrol: { left: x+4, right: x+8 } });
+      }
+      // Boss arena
+      list.push({ type: EnemyType.Boss, x: 132, y: 10, patrol: { left: 128, right: 140 } });
+      return list;
+    })(),
+    tiles: (() => {
+      const w = 150, h = 17;
+      const A = new Array(w * h).fill(0);
+      const G = Tiles.Ground, S = Tiles.Spike;
+      // solid layered ground base
+      for (let x = 0; x < w; x++) {
+        A[idx(x,12,w)] = G; A[idx(x,13,w)] = G; A[idx(x,14,w)] = G; A[idx(x,15,w)] = G; A[idx(x,16,w)] = G;
+      }
+      // carve alternating pits to limit safe standing zones (no floating platforms)
+      const pits = [18,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108,114,120];
+      for (const p of pits) {
+        // small gap width 2 or 3 randomly (deterministic using p)
+        const width = (p % 3 === 0) ? 3 : 2;
+        for (let xx = 0; xx < width; xx++) {
+          for (let yy = 12; yy < 17; yy++) A[idx(p+xx, yy, w)] = 0;
+        }
+      }
+      // add spike lines preceding some pits for extra pressure
+      const spikeStarts = [22,40,58,76,94,112];
+      for (const sx of spikeStarts) {
+        for (let x = sx; x < sx+2; x++) A[idx(x, 12, w)] = S;
+      }
+      // Raise boss arena floor slightly (safer) + remove nearby pits
+      for (let x = 124; x < 150; x++) {
+        A[idx(x,11,w)] = G; A[idx(x,12,w)] = G; A[idx(x,13,w)] = G; A[idx(x,14,w)] = G; A[idx(x,15,w)] = G; A[idx(x,16,w)] = G;
+      }
+      for (let x = 122; x <= 124; x++) A[idx(x,12,w)] = S; // hazard moat before arena
+      return A;
+    })(),
+  },
 ];
 
 export function idx(x, y, w) { return y * w + x; }
