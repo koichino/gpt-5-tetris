@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Pancake Flip</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Pancake Flip</h1>
+    <div class="hud">
+      <div>Score: <span id="score">0</span></div>
+      <div>Best: <span id="best">0</span></div>
+      <button id="btnStart">Start</button>
+      <button id="btnFlip" disabled>Flip!</button>
+      <button id="btnRestart" disabled>Restart</button>
+    </div>
+  </header>
+  <main>
+    <div id="gameWrapper">
+      <canvas id="game" width="420" height="480" aria-label="ゲームキャンバス"></canvas>
+      <div id="overlay" class="show">
+        <div class="panel">
+          <h2>Pancake Flip</h2>
+          <p>Start で開始。タイミング良く Flip! を押してパンケーキを綺麗にひっくり返そう。</p>
+          <p class="small">スペースキーでも Flip 可能</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer><p class="small">© 2025 PancakeFlip Demo</p></footer>
+  <script src="main.js"></script>
+</body>
+</html>

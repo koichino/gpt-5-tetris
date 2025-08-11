@@ -1,0 +1,17 @@
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+body{margin:0;background:#20262e;color:#eee;min-height:100vh;display:flex;flex-direction:column}
+header,footer{background:#262e37;padding:8px 14px;border-bottom:1px solid #333}
+footer{border-top:1px solid #333;margin-top:auto;font-size:12px;text-align:center}
+h1{font-size:20px;margin:0 16px 0 0}
+.hud{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:14px}
+button{background:#ff9800;color:#222;border:0;border-radius:4px;padding:6px 14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px #0006;transition:.15s}
+button:hover:not([disabled]){background:#ffb23b}
+button[disabled]{opacity:.4;cursor:default}
+#gameWrapper{margin:0 auto;padding:12px;position:relative}
+#game{background:linear-gradient(#39424d,#313841);border:4px solid #151b21;border-radius:10px;box-shadow:0 4px 16px #000a}
+#overlay{position:absolute;inset:12px;display:none;align-items:center;justify-content:center}
+#overlay.show{display:flex}
+.panel{background:#2d353f;padding:24px 28px;border-radius:12px;max-width:360px;text-align:center;box-shadow:0 8px 28px -4px #000}
+.small{font-size:12px;opacity:.75}
+.flash{animation:flash .5s}
+@keyframes flash{0%,100%{color:#fff}40%,60%{color:#ffeb3b}}

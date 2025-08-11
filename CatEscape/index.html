@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Cat Escape</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Cat Escape</h1>
+    <div class="hud">
+      <label>猫: <select id="catSelect" aria-label="猫の種類選択"></select></label>
+      <button id="btnStart">Start</button>
+      <button id="btnReset" disabled>Reset</button>
+      <span>ステージ: <span id="stage">1</span></span>
+      <span>手数: <span id="moves">0</span></span>
+    </div>
+  </header>
+  <main>
+    <div id="gameWrapper">
+      <div id="grid" role="grid" aria-label="迷路"></div>
+      <div class="controls">
+        <div class="row">
+          <button data-move="up" aria-label="上" class="ctrl">▲</button>
+        </div>
+        <div class="row">
+          <button data-move="left" aria-label="左" class="ctrl">◀</button>
+          <button data-move="down" aria-label="下" class="ctrl">▼</button>
+          <button data-move="right" aria-label="右" class="ctrl">▶</button>
+        </div>
+      </div>
+      <div id="overlay" class="show"><div class="panel" id="ovPanel"></div></div>
+    </div>
+  </main>
+  <footer><p class="small">© 2025 CatEscape Demo</p></footer>
+  <script src="main.js"></script>
+</body>
+</html>

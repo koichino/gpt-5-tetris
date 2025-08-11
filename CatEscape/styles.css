@@ -1,0 +1,47 @@
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+body{margin:0;background:#12161a;color:#eee;display:flex;flex-direction:column;min-height:100vh}
+header,footer{background:#242a31;padding:8px 14px;border-bottom:1px solid #333}
+footer{margin-top:auto;border-top:1px solid #333;font-size:12px;text-align:center}
+.hud{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:14px}
+h1{font-size:20px;margin:0 12px 0 0}
+button{background:#4e8cff;color:#fff;border:0;border-radius:4px;padding:6px 14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px #0006;transition:.15s}
+button:hover:not([disabled]){background:#6fa8ff}
+button[disabled]{opacity:.45;cursor:default}
+/* layout: grid full width, controls under */
+#gameWrapper{margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px;position:relative;max-width:100%;width:100%}
+#grid{--cell:32px;display:grid;grid-template-columns:repeat(15,var(--cell));grid-auto-rows:var(--cell);gap:2px;background:#0b0d10;padding:6px;border:4px solid #1f2730;border-radius:8px;box-shadow:0 4px 16px #000c;align-self:center}
+.cell{width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;border-radius:4px;position:relative;transition:background .15s}
+/* 高コントラスト: 壁=濃い/床=明るめ */
+.wall{background:#182129}
+.floor{background:#5b7489}
+/* holes removed (previous .hole) */
+.exit{background:radial-gradient(circle at 30% 30%,#73ff9d,#16c46a 70%);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+/* --- Cat sprite (CSS drawing) --- */
+.cat{position:absolute;inset:2px;display:flex;align-items:center;justify-content:center}
+.catBody{position:relative;width:26px;height:26px;border-radius:40% 40% 45% 45%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #0006,0 2px 4px #000a;font-size:0}
+.catBody:before,.catBody:after{content:"";position:absolute;top:-6px;width:10px;height:12px;background:inherit;border-radius:30% 30% 0 0;box-shadow:0 0 0 2px #0004;transform:skewX(-6deg)}
+.catBody:before{left:2px}
+.catBody:after{right:2px;transform:skewX(6deg)}
+.catBody .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.eyes{position:absolute;top:38%;left:50%;width:60%;display:flex;justify-content:space-between;transform:translateX(-50%)}
+.eyes span{width:5px;height:6px;background:#111;border-radius:50%;box-shadow:0 0 0 1px #0006}
+.mouth{position:absolute;bottom:30%;left:50%;width:8px;height:4px;border-bottom:2px solid #111;border-radius:0 0 50% 50%;transform:translateX(-50%)}
+/* Color variants */
+.cat.normal .catBody{background:linear-gradient(#ffe9b5,#f7c46a)}
+.cat.orange .catBody{background:linear-gradient(#ffb347,#ff8514)}
+.cat.gray .catBody{background:linear-gradient(#d5dbe2,#909aa3)}
+.cat.black .catBody{background:linear-gradient(#444,#0f0f0f)}
+.cat.calico .catBody{background:linear-gradient(90deg,#fff 0 33%,#ffb347 33% 66%,#2d2d2d 66%)}
+.cat.black .eyes span{background:#eee}
+.cat.black .mouth{border-color:#eee}
+.controls{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.controls .row{display:flex;gap:8px}
+.ctrl{width:48px;height:48px;font-size:20px;background:#38424d}
+.ctrl:hover{background:#4a5663}
+#overlay{position:absolute;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:20px}
+#overlay.show{display:flex}
+.panel{background:#2d343c;padding:24px 28px;border-radius:12px;max-width:480px;text-align:center;box-shadow:0 8px 28px -4px #000;font-size:14px}
+.small{font-size:12px;opacity:.75}
+.flash{animation:flash .5s}
+@keyframes flash{0%,100%{color:#fff}40%,60%{color:#ffeb3b}}
