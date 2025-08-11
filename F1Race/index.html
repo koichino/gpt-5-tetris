@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>F1 Race</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>F1 Race</h1>
+    <div class="hud">
+      <div>Score: <span id="score">0</span></div>
+      <div>High: <span id="highScore">0</span></div>
+      <div>Speed: <span id="speed">0</span></div>
+      <button id="btnStart">Start</button>
+      <button id="btnPause" disabled>Pause</button>
+      <button id="btnRestart" disabled>Restart</button>
+    </div>
+  </header>
+  <main>
+    <div id="gameWrapper">
+      <div id="gameArea" aria-label="ゲームエリア" tabindex="0"></div>
+      <div id="overlay" class="hidden" role="dialog" aria-modal="true">
+        <div class="panel">
+          <h2 id="ovTitle">F1 Race</h2>
+          <p id="ovMessage">Start ボタンで開始</p>
+          <p class="small">操作: ← → または A D (長押しで連続移動) / P でポーズ</p>
+          <p class="small">抜いた台数でスコア加算。速くなるほど難易度アップ。</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <p class="small">© 2025 F1Race Demo</p>
+  </footer>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+body{margin:0;background:#101418;color:#eee;display:flex;flex-direction:column;min-height:100vh}
+header,footer{padding:8px 16px;background:#181f27;border-bottom:1px solid #222}
+footer{border-top:1px solid #222;margin-top:auto;font-size:12px;text-align:center}
+h1{font-size:20px;margin:0 12px 0 0}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hud{display:flex;gap:16px;align-items:center;font-size:14px;flex-wrap:wrap}
+button{background:#ff1744;border:0;color:#fff;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:600;box-shadow:0 2px 4px #0006;transition:.15s}
+button[disabled]{opacity:.4;cursor:default}
+button:not([disabled]):hover{background:#ff2e59}
+#gameWrapper{position:relative;margin:0 auto;flex:1;display:flex;align-items:center;justify-content:center;padding:8px;width:100%;max-width:420px}
+#gameArea{position:relative;width:300px;height:560px;background:#222;overflow:hidden;border:3px solid #555;border-radius:6px;box-shadow:0 0 0 4px #000,0 4px 16px #000a}
+.laneDivider{position:absolute;left:50%;width:6px;height:40px;margin-left:-3px;background:linear-gradient(#bbb,#eee);border-radius:3px;box-shadow:0 0 4px #fff8}
+.roadEdge{position:absolute;top:0;width:6px;height:100%;background:#666}
+.roadEdge.left{left:0}.roadEdge.right{right:0}
+.car{position:absolute;width:42px;height:70px;border-radius:8px 8px 4px 4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;letter-spacing:.5px;filter:drop-shadow(0 3px 4px #000a)}
+.player{background:linear-gradient(#f44336,#b71c1c);border:2px solid #fff}
+.enemy{background:linear-gradient(#1976d2,#0d47a1);border:2px solid #0d47a1}
+.enemy.fast{background:linear-gradient(#ffa000,#ef6c00);border-color:#ef6c00}
+.explosion{pointer-events:none;position:absolute;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,#ff9800,#e91e63 70%,transparent 72%);animation:boom .6s ease-out forwards;mix-blend-mode:screen}
+@keyframes boom{0%{transform:scale(.3);opacity:.9}70%{transform:scale(2.8);opacity:.6}100%{transform:scale(3.2);opacity:0}}
+#overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:#000c;display:flex;align-items:center;justify-content:center;padding:20px}
+#overlay.hidden{display:none}
+.panel{background:#1e262f;padding:24px 28px;border-radius:10px;max-width:320px;text-align:center;box-shadow:0 6px 24px -4px #000}
+.small{font-size:12px;opacity:.75;margin-top:8px}
+#score,#highScore,#speed{font-variant-numeric:tabular-nums}
+.flash{animation:flash .5s}
+@keyframes flash{0%,100%{color:#fff}40%,60%{color:#ffeb3b}}
